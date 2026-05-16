@@ -23,10 +23,12 @@ app = FastAPI(title="Cineminha YouTube Agent", version="1.0.0")
 _cors_raw = os.environ.get("CORS_ORIGINS", "*").strip()
 _cors_origins = ["*"] if _cors_raw in ("", "*") else [o.strip() for o in _cors_raw.split(",") if o.strip()]
 
+# credentials=True com allow_origins=["*"] quebra CORS no browser (produção/Vercel).
+_use_wildcard = _cors_origins == ["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    allow_credentials=True,
+    allow_credentials=not _use_wildcard,
     allow_methods=["*"],
     allow_headers=["*"],
 )

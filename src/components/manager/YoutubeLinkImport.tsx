@@ -3,7 +3,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { useYoutubeAgent } from "../../hooks/useYoutubeAgent";
-import { CHANNEL_IMPORT_VIDEO_LIMIT, fetchChannelFromAgent, getYouTubeVideoDetails } from "../../lib/youtube-api";
+import {
+  CHANNEL_IMPORT_VIDEO_LIMIT,
+  fetchChannelFromAgent,
+  getAgentOfflineHelp,
+  getYouTubeVideoDetails,
+  isAgentMisconfiguredInProduction,
+} from "../../lib/youtube-api";
 import { classifyYoutubeLink, extractYoutubeVideoId } from "../../lib/youtube-link";
 import { parseVideoUrl } from "../../lib/video-url";
 import {
@@ -52,7 +58,7 @@ export function YoutubeLinkImport({
   onError,
   onSuccess,
 }: YoutubeLinkImportProps) {
-  const { online, checking } = useYoutubeAgent();
+  const { online, checking, refresh: refreshAgent } = useYoutubeAgent();
   const [link, setLink] = useState("");
   const debouncedLink = useDebouncedValue(link, 600);
   const [preview, setPreview] = useState<PreviewState>({ status: "idle" });
@@ -87,10 +93,10 @@ export function YoutubeLinkImport({
         return;
       }
 
-      if (!online) {
+      if (kind === "channel" && online === false) {
         setPreview({
           status: "error",
-          message: "Agente Python offline. Execute npm run agent ou npm run dev:all.",
+          message: getAgentOfflineHelp(),
         });
         return;
       }
@@ -104,7 +110,10 @@ export function YoutubeLinkImport({
           const videoId = extractYoutubeVideoId(trimmed);
           if (!videoId) throw new Error("ID do vídeo inválido.");
           const parsed = parseVideoUrl(trimmed);
-          const details = await getYouTubeVideoDetails(videoId).catch(() => null);
+          const details =
+            online === true
+              ? await getYouTubeVideoDetails(videoId).catch(() => null)
+              : null;
           const title = details?.title ?? "";
           const thumbnail =
             details?.thumbnail ?? parsed?.thumbnail ?? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
@@ -151,10 +160,17 @@ export function YoutubeLinkImport({
   );
 
   useEffect(() => {
+    if (checking) return;
     if (debouncedLink === lastAnalyzed.current) return;
     lastAnalyzed.current = debouncedLink;
     void analyzeLink(debouncedLink);
-  }, [debouncedLink, analyzeLink]);
+  }, [debouncedLink, analyzeLink, checking]);
+
+  useEffect(() => {
+    if (online !== true || !debouncedLink.trim()) return;
+    lastAnalyzed.current = "";
+    void analyzeLink(debouncedLink);
+  }, [online, debouncedLink, analyzeLink]);
 
   const handlePublishVideo = async () => {
     if (!hasChildren || childIds.length === 0) {
@@ -267,10 +283,24 @@ export function YoutubeLinkImport({
       <p className="text-xs text-slate-500">
         Cole o link de um <strong className="text-slate-400">vídeo</strong> ou de um{" "}
         <strong className="text-slate-400">canal</strong>. A prévia aparece automaticamente abaixo.
-        {!online && !checking ? (
+        {checking ? (
+          <span className="mt-1 block text-slate-400">Verificando agente no Railway…</span>
+        ) : online === false ? (
           <span className="mt-1 block text-amber-400/90">
-            Agente offline — inicie com <code className="text-amber-200">npm run agent</code>.
+            {getAgentOfflineHelp()}{" "}
+            <button
+              type="button"
+              onClick={() => {
+                lastAnalyzed.current = "";
+                void refreshAgent().then(() => analyzeLink(link));
+              }}
+              className="underline hover:text-amber-200"
+            >
+              Tentar novamente
+            </button>
           </span>
+        ) : isAgentMisconfiguredInProduction() ? (
+          <span className="mt-1 block text-red-400/90">{getAgentOfflineHelp()}</span>
         ) : null}
       </p>
 

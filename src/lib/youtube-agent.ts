@@ -31,6 +31,8 @@ function normalizeAgentBase(raw: string | undefined): string {
 }
 
 const AGENT_BASE = normalizeAgentBase(import.meta.env.VITE_YOUTUBE_AGENT_URL);
+const IS_PROD = import.meta.env.PROD;
+const HEALTH_TIMEOUT_MS = IS_PROD ? 15000 : 4000;
 
 let agentOnline: boolean | null = null;
 
@@ -40,10 +42,31 @@ export function getAgentBaseUrl(): string {
   return AGENT_BASE;
 }
 
+/** Produção apontando para localhost = variável Vercel não configurada no build. */
+export function isAgentMisconfiguredInProduction(): boolean {
+  return IS_PROD && /127\.0\.0\.1|localhost/i.test(AGENT_BASE);
+}
+
+export function getAgentOfflineHelp(): string {
+  if (isAgentMisconfiguredInProduction()) {
+    return "Em produção: defina VITE_YOUTUBE_AGENT_URL na Vercel (https://seu-app.up.railway.app) e faça Redeploy.";
+  }
+  if (IS_PROD) {
+    return "Agente no Railway indisponível. Confira se o serviço está ativo e teste /health no navegador.";
+  }
+  return "Inicie o agente local: npm run agent (ou npm run dev:all).";
+}
+
 export async function checkYoutubeAgent(): Promise<boolean> {
+  if (isAgentMisconfiguredInProduction()) {
+    agentOnline = false;
+    return false;
+  }
   try {
     const res = await fetch(`${AGENT_BASE}/health`, {
-      signal: AbortSignal.timeout(4000),
+      method: "GET",
+      mode: "cors",
+      signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
     });
     agentOnline = res.ok;
   } catch {
@@ -79,7 +102,7 @@ async function agentFetch<T>(path: string, init?: RequestInit): Promise<T> {
     const msg =
       body.detail ??
       (res.status === 0 || res.status >= 500
-        ? "Agente Python indisponível. Execute: npm run agent"
+        ? `Agente indisponível. ${getAgentOfflineHelp()}`
         : `Erro do agente (${res.status})`);
     throw new Error(msg);
   }
