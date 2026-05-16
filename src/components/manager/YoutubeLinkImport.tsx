@@ -284,7 +284,7 @@ export function YoutubeLinkImport({
         Cole o link de um <strong className="text-slate-400">vídeo</strong> ou de um{" "}
         <strong className="text-slate-400">canal</strong>. A prévia aparece automaticamente abaixo.
         {checking ? (
-          <span className="mt-1 block text-slate-400">Verificando agente no Railway…</span>
+          <span className="mt-1 block text-slate-400">Verificando agente…</span>
         ) : online === false ? (
           <span className="mt-1 block text-amber-400/90">
             {getAgentOfflineHelp()}{" "}

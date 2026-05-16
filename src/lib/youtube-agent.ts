@@ -1,4 +1,4 @@
-/** Cliente do agente Python local (yt-dlp) — sem API oficial do YouTube. */
+/** Cliente do agente Python (yt-dlp) — sem API oficial do YouTube. */
 
 export interface YouTubeSearchItem {
   videoId: string;
@@ -19,18 +19,35 @@ export interface YouTubeChannelPayload extends YouTubeChannelInfo {
   videos: YouTubeSearchItem[];
 }
 
-/** Garante URL absoluta (sem https o browser trata como path relativo à página atual). */
-function normalizeAgentBase(raw: string | undefined): string {
-  const fallback = "http://127.0.0.1:8765";
-  let base = (raw?.trim() || fallback).replace(/\/+$/, "");
-  if (!base) return fallback;
+const LOCAL_AGENT = "http://127.0.0.1:8765";
+/** Proxy na Vercel → Railway (mesma origem, sem CORS). */
+const PROD_AGENT_PROXY = "/api/agent";
+
+function normalizeAgentBase(raw: string): string {
+  let base = raw.trim().replace(/\/+$/, "");
+  if (!base) return LOCAL_AGENT;
+  if (base.startsWith("/")) return base;
   if (!/^https?:\/\//i.test(base)) {
     base = `https://${base}`;
   }
   return base;
 }
 
-const AGENT_BASE = normalizeAgentBase(import.meta.env.VITE_YOUTUBE_AGENT_URL);
+function resolveAgentBase(): string {
+  const env = import.meta.env.VITE_YOUTUBE_AGENT_URL?.trim();
+
+  if (import.meta.env.PROD) {
+    // Produção: proxy /api/agent evita CORS (ver vercel.json)
+    if (!env || /127\.0\.0\.1|localhost|railway\.app/i.test(env)) {
+      return PROD_AGENT_PROXY;
+    }
+    return normalizeAgentBase(env);
+  }
+
+  return normalizeAgentBase(env || LOCAL_AGENT);
+}
+
+const AGENT_BASE = resolveAgentBase();
 const IS_PROD = import.meta.env.PROD;
 const HEALTH_TIMEOUT_MS = IS_PROD ? 15000 : 4000;
 
@@ -42,17 +59,16 @@ export function getAgentBaseUrl(): string {
   return AGENT_BASE;
 }
 
-/** Produção apontando para localhost = variável Vercel não configurada no build. */
 export function isAgentMisconfiguredInProduction(): boolean {
   return IS_PROD && /127\.0\.0\.1|localhost/i.test(AGENT_BASE);
 }
 
 export function getAgentOfflineHelp(): string {
   if (isAgentMisconfiguredInProduction()) {
-    return "Em produção: defina VITE_YOUTUBE_AGENT_URL na Vercel (https://seu-app.up.railway.app) e faça Redeploy.";
+    return "Em produção o site usa o proxy /api/agent. Remova VITE_YOUTUBE_AGENT_URL=127.0.0.1 na Vercel e faça Redeploy.";
   }
   if (IS_PROD) {
-    return "Agente no Railway indisponível. Confira se o serviço está ativo e teste /health no navegador.";
+    return "Agente indisponível. Teste /api/agent/health no seu site (proxy para o Railway).";
   }
   return "Inicie o agente local: npm run agent (ou npm run dev:all).";
 }
@@ -65,7 +81,6 @@ export async function checkYoutubeAgent(): Promise<boolean> {
   try {
     const res = await fetch(`${AGENT_BASE}/health`, {
       method: "GET",
-      mode: "cors",
       signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
     });
     agentOnline = res.ok;
@@ -75,7 +90,6 @@ export async function checkYoutubeAgent(): Promise<boolean> {
   return agentOnline;
 }
 
-/** Compatível com código que checava API key — agora verifica o agente Python. */
 export function hasYouTubeApiKey(): boolean {
   return agentOnline === true;
 }
