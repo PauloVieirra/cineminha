@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", system-ui, sans-serif;
+  --color-surface: #0a0e17;
+  --color-surface-elevated: #121827;
+  --color-surface-card: #1a2235;
+  --color-accent: #22c55e;
+  --color-accent-glow: #4ade80;
+  --color-muted: #94a3b8;
+  --color-border: rgba(255, 255, 255, 0.08);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-surface);
+  color: #f8fafc;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: rgba(34, 197, 94, 0.35);
+}
+
+.gradient-mesh {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(34, 197, 94, 0.15), transparent),
+    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(59, 130, 246, 0.12), transparent),
+    radial-gradient(ellipse 50% 30% at 50% 100%, rgba(168, 85, 247, 0.08), transparent),
+    var(--color-surface);
+}
+
+.glass {
+  background: rgba(18, 24, 39, 0.72);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--color-border);
+}
+
+.safe-player-shell {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: #000;
+  aspect-ratio: 16 / 9;
+}
+
+.safe-player-shell iframe,
+.safe-player-shell video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Bloqueia cliques que escapam para áreas externas do iframe em alguns casos */
+.safe-player-overlay {
+  pointer-events: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+}
+
+/* Mobile horizontal: player em tela cheia */
+html[data-landscape-player] body {
+  overflow: hidden;
+  background: #000;
+}
+
+html[data-landscape-player] .child-watch-chrome {
+  display: none !important;
+}
+
+html[data-landscape-player] .child-watch-below-player {
+  display: none !important;
+}
+
+.safe-player-shell--immersive {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  width: 100dvw;
+  height: 100dvh;
+  max-width: 100dvw;
+  max-height: 100dvh;
+  border-radius: 0;
+  aspect-ratio: unset;
+  background: #000;
+}
+
+.safe-player-shell--immersive iframe,
+.safe-player-shell--immersive video {
+  object-fit: contain;
+}
+
+html[data-landscape-player] .watch-player-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  border-radius: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+html[data-landscape-player] .watch-landscape-hint {
+  display: flex;
+}
+
+html[data-landscape-player] .swipe-hint-portrait-only {
+  display: none;
+}
+
+.watch-landscape-hint {
+  display: none;
+  position: fixed;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  left: 50%;
+  z-index: 10000;
+  transform: translateX(-50%);
+  pointer-events: none;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 6px 14px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* API Fullscreen nativa */
+.safe-player-shell:fullscreen,
+.safe-player-shell:-webkit-full-screen {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  aspect-ratio: unset;
+  background: #000;
+}
+
+.safe-player-shell:fullscreen iframe,
+.safe-player-shell:fullscreen video,
+.safe-player-shell:-webkit-full-screen iframe,
+.safe-player-shell:-webkit-full-screen video {
+  object-fit: contain;
+}
