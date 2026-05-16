@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Cineminha">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#16a34a" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+  <g fill="#0a0e17" transform="translate(96 128)">
+    <rect x="0" y="0" width="320" height="256" rx="28" />
+    <rect x="24" y="24" width="72" height="56" rx="8" fill="#34d399" />
+    <rect x="112" y="24" width="72" height="56" rx="8" fill="#34d399" />
+    <rect x="200" y="24" width="72" height="56" rx="8" fill="#34d399" />
+    <rect x="24" y="96" width="72" height="56" rx="8" fill="#34d399" />
+    <rect x="112" y="96" width="72" height="56" rx="8" fill="#34d399" />
+    <rect x="200" y="96" width="72" height="56" rx="8" fill="#34d399" />
+    <rect x="24" y="168" width="248" height="64" rx="12" fill="#22c55e" />
+  </g>
+</svg>

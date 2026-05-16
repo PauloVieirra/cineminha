@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Film, Shield, Sparkles, Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import { InstallAppPrompt } from "../components/InstallAppPrompt";
 import { Logo } from "../components/Logo";
 import { Button } from "../components/ui/Button";
 
@@ -84,6 +85,10 @@ export function LandingPage() {
               </Button>
             </Link>
           </motion.div>
+
+          <div className="flex justify-center">
+            <InstallAppPrompt />
+          </div>
 
           <p className="mx-auto mt-6 max-w-lg text-xs text-amber-200/90">
             Apenas maiores de 16 anos podem criar conta de gestor. O cadastro é feito com
