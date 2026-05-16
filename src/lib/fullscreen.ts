@@ -1,3 +1,12 @@
+export function isStandaloneDisplay(): boolean {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches ||
+    ("standalone" in window.navigator &&
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true)
+  );
+}
+
 export function isMobileLikeDevice(): boolean {
   const coarse = window.matchMedia("(pointer: coarse)").matches;
   const narrow = Math.min(window.innerWidth, window.innerHeight) < 900;
@@ -7,10 +16,27 @@ export function isMobileLikeDevice(): boolean {
   return (coarse && narrow) || uaMobile;
 }
 
+/** Largura/altura do viewport — confiável no PWA e após rotação. */
+function viewportDimensions(): { w: number; h: number } {
+  const vv = window.visualViewport;
+  return {
+    w: vv?.width ?? window.innerWidth,
+    h: vv?.height ?? window.innerHeight,
+  };
+}
+
 export function isLandscapeOrientation(): boolean {
-  if (window.screen?.orientation?.type) {
-    return window.screen.orientation.type.startsWith("landscape");
+  const { w, h } = viewportDimensions();
+  if (w > h && h < 900) return true;
+
+  const screenType = window.screen?.orientation?.type;
+  if (screenType) return screenType.startsWith("landscape");
+
+  const legacy = (window as Window & { orientation?: number }).orientation;
+  if (typeof legacy === "number") {
+    return legacy === 90 || legacy === -90;
   }
+
   return window.matchMedia("(orientation: landscape)").matches;
 }
 
@@ -82,4 +108,28 @@ export async function requestVideoNativeFullscreen(
   } catch {
     return false;
   }
+}
+
+export function subscribeViewportOrientation(onChange: () => void): () => void {
+  const handler = () => onChange();
+
+  window.addEventListener("orientationchange", handler);
+  window.addEventListener("resize", handler);
+  window.addEventListener("pageshow", handler);
+  window.visualViewport?.addEventListener("resize", handler);
+
+  const mq = window.matchMedia("(orientation: landscape)");
+  mq.addEventListener("change", handler);
+
+  const screenOrientation = window.screen?.orientation;
+  screenOrientation?.addEventListener?.("change", handler);
+
+  return () => {
+    window.removeEventListener("orientationchange", handler);
+    window.removeEventListener("resize", handler);
+    window.removeEventListener("pageshow", handler);
+    window.visualViewport?.removeEventListener("resize", handler);
+    mq.removeEventListener("change", handler);
+    screenOrientation?.removeEventListener?.("change", handler);
+  };
 }

@@ -4,6 +4,7 @@ import {
   requestElementFullscreen,
   requestVideoNativeFullscreen,
   shouldUseLandscapeFullscreen,
+  subscribeViewportOrientation,
 } from "../lib/fullscreen";
 
 const ROOT_ATTR = "data-landscape-player";
@@ -35,15 +36,9 @@ export function useMobileLandscapeFullscreen(
 
   useEffect(() => {
     updateOrientation();
-    window.addEventListener("orientationchange", updateOrientation);
-    window.addEventListener("resize", updateOrientation);
-    const mq = window.matchMedia("(orientation: landscape)");
-    mq.addEventListener("change", updateOrientation);
-
+    const unsubscribe = subscribeViewportOrientation(updateOrientation);
     return () => {
-      window.removeEventListener("orientationchange", updateOrientation);
-      window.removeEventListener("resize", updateOrientation);
-      mq.removeEventListener("change", updateOrientation);
+      unsubscribe();
       document.documentElement.removeAttribute(ROOT_ATTR);
       exitElementFullscreen();
     };
@@ -64,7 +59,7 @@ export function useMobileLandscapeFullscreen(
     let cancelled = false;
 
     const enter = async () => {
-      await new Promise((r) => setTimeout(r, 150));
+      await new Promise((r) => setTimeout(r, 120));
       if (cancelled) return;
 
       const video = videoRef.current;

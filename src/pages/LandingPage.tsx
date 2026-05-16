@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { InstallAppPrompt } from "../components/InstallAppPrompt";
 import { Logo } from "../components/Logo";
 import { Button } from "../components/ui/Button";
+import { useAuth } from "../contexts/AuthContext";
 
 const features = [
   {
@@ -27,6 +28,8 @@ const features = [
 ];
 
 export function LandingPage() {
+  const { ready, isAuthenticated } = useAuth();
+
   return (
     <div className="gradient-mesh min-h-dvh">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-6 sm:px-6">
@@ -74,16 +77,26 @@ export function LandingPage() {
             transition={{ delay: 0.25 }}
             className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
           >
-            <Link to="/cadastro">
-              <Button className="min-w-[220px] px-8 py-3.5 text-base">
-                Criar conta de gestor
-              </Button>
-            </Link>
-            <Link to="/entrar">
-              <Button variant="secondary" className="min-w-[220px] px-8 py-3.5 text-base">
-                Já tenho conta — entrar
-              </Button>
-            </Link>
+            {ready && isAuthenticated ? (
+              <Link to="/perfis">
+                <Button className="min-w-[220px] px-8 py-3.5 text-base">
+                  Continuar para os perfis
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link to="/cadastro">
+                  <Button className="min-w-[220px] px-8 py-3.5 text-base">
+                    Criar conta de gestor
+                  </Button>
+                </Link>
+                <Link to="/entrar">
+                  <Button variant="secondary" className="min-w-[220px] px-8 py-3.5 text-base">
+                    Já tenho conta — entrar
+                  </Button>
+                </Link>
+              </>
+            )}
           </motion.div>
 
           <div className="flex justify-center">

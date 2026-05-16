@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { GestorUnlockedGuard } from "./components/GestorUnlockedGuard";
+import { GuestGuard } from "./components/GuestGuard";
 import { ManagerGuard } from "./components/ManagerGuard";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -15,8 +16,10 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/cadastro" element={<RegisterPage />} />
-      <Route path="/entrar" element={<LoginPage />} />
+      <Route element={<GuestGuard />}>
+        <Route path="/cadastro" element={<RegisterPage />} />
+        <Route path="/entrar" element={<LoginPage />} />
+      </Route>
 
       <Route element={<ManagerGuard />}>
         <Route path="/perfis" element={<ProfilesPage />} />

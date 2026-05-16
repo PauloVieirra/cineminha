@@ -1,7 +1,8 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
-export function ManagerGuard() {
+/** Redireciona usuários já autenticados para a seleção de perfis. */
+export function GuestGuard() {
   const { ready, isAuthenticated } = useAuth();
 
   if (!ready) {
@@ -12,7 +13,7 @@ export function ManagerGuard() {
     );
   }
 
-  if (!isAuthenticated) return <Navigate to="/entrar" replace />;
+  if (isAuthenticated) return <Navigate to="/perfis" replace />;
 
   return <Outlet />;
 }

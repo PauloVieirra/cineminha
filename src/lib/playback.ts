@@ -1,4 +1,5 @@
 import type { Video } from "../types";
+import { readAppStorage, writeAppStorage } from "./app-storage";
 import { youtubeWatchUrl } from "./youtube-api";
 
 export function videoFromYoutubeId(
@@ -30,12 +31,12 @@ const PLAYLIST_KEY = "cineminha_playlist";
 const CHANNEL_KEY = "cineminha_channel_ctx";
 
 export function savePlaylist(childId: string, playlist: PlaylistEntry[]): void {
-  sessionStorage.setItem(`${PLAYLIST_KEY}_${childId}`, JSON.stringify(playlist));
+  writeAppStorage(`${PLAYLIST_KEY}_${childId}`, JSON.stringify(playlist));
 }
 
 export function loadPlaylist(childId: string): PlaylistEntry[] {
   try {
-    const raw = sessionStorage.getItem(`${PLAYLIST_KEY}_${childId}`);
+    const raw = readAppStorage(`${PLAYLIST_KEY}_${childId}`);
     return raw ? (JSON.parse(raw) as PlaylistEntry[]) : [];
   } catch {
     return [];
@@ -46,7 +47,7 @@ export function saveChannelContext(
   childId: string,
   ctx: { channelId: string; channelTitle: string }
 ): void {
-  sessionStorage.setItem(`${CHANNEL_KEY}_${childId}`, JSON.stringify(ctx));
+  writeAppStorage(`${CHANNEL_KEY}_${childId}`, JSON.stringify(ctx));
 }
 
 export function loadChannelContext(childId: string): {
@@ -54,7 +55,7 @@ export function loadChannelContext(childId: string): {
   channelTitle: string;
 } | null {
   try {
-    const raw = sessionStorage.getItem(`${CHANNEL_KEY}_${childId}`);
+    const raw = readAppStorage(`${CHANNEL_KEY}_${childId}`);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;

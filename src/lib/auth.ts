@@ -1,29 +1,31 @@
 import { clearGestorUnlocked } from "./gestor-access";
+import { readAppStorage, removeAppStorage, writeAppStorage } from "./app-storage";
 
 const SESSION_KEY = "cineminha_manager_session";
 const CHILD_KEY = "cineminha_active_child";
+
 export function setManagerSession(managerId: string): void {
-  sessionStorage.setItem(SESSION_KEY, managerId);
+  writeAppStorage(SESSION_KEY, managerId);
 }
 
 export function getManagerSession(): string | null {
-  return sessionStorage.getItem(SESSION_KEY);
+  return readAppStorage(SESSION_KEY);
 }
 
 export function clearManagerSession(): void {
-  sessionStorage.removeItem(SESSION_KEY);
+  removeAppStorage(SESSION_KEY);
 }
 
 export function setActiveChild(childId: string): void {
-  sessionStorage.setItem(CHILD_KEY, childId);
+  writeAppStorage(CHILD_KEY, childId);
 }
 
 export function getActiveChild(): string | null {
-  return sessionStorage.getItem(CHILD_KEY);
+  return readAppStorage(CHILD_KEY);
 }
 
 export function clearActiveChild(): void {
-  sessionStorage.removeItem(CHILD_KEY);
+  removeAppStorage(CHILD_KEY);
 }
 
 export function clearAllSessions(): void {

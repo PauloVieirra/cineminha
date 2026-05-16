@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useMobileLandscapeFullscreen } from "../hooks/useMobileLandscapeFullscreen";
 import { parseVideoUrl, vimeoEmbedParams, youtubeEmbedParams } from "../lib/video-url";
 import type { Video } from "../types";
@@ -72,6 +73,18 @@ export function SafePlayer({
     return () => window.removeEventListener("keydown", blockKeys);
   }, []);
 
+  const wrapShell = (content: ReactNode) => {
+    const shell = (
+      <div ref={setShellRef} className={shellClass}>
+        {content}
+      </div>
+    );
+    if (isLandscapeMobile) {
+      return createPortal(shell, document.body);
+    }
+    return shell;
+  };
+
   if (!parsed) {
     return (
       <div className="flex aspect-video items-center justify-center rounded-2xl bg-slate-900 text-slate-400">
@@ -82,8 +95,8 @@ export function SafePlayer({
 
   if (parsed.platform === "youtube" && parsed.embedId) {
     const src = `${parsed.embedUrl}?${youtubeEmbedParams()}`;
-    return (
-      <div ref={setShellRef} className={shellClass}>
+    return wrapShell(
+      <>
         <iframe
           title={video.title}
           src={src}
@@ -95,44 +108,40 @@ export function SafePlayer({
         {!isLandscapeMobile ? (
           <div className="safe-player-overlay absolute inset-0" aria-hidden />
         ) : null}
-      </div>
+      </>
     );
   }
 
   if (parsed.platform === "vimeo" && parsed.embedId) {
     const src = `${parsed.embedUrl}?${vimeoEmbedParams()}`;
-    return (
-      <div ref={setShellRef} className={shellClass}>
-        <iframe
-          title={video.title}
-          src={src}
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-          sandbox="allow-scripts allow-same-origin allow-presentation"
-        />
-      </div>
+    return wrapShell(
+      <iframe
+        title={video.title}
+        src={src}
+        allow="autoplay; fullscreen; picture-in-picture"
+        allowFullScreen
+        referrerPolicy="strict-origin-when-cross-origin"
+        sandbox="allow-scripts allow-same-origin allow-presentation"
+      />
     );
   }
 
   if (parsed.platform === "direct" && parsed.embedUrl) {
-    return (
-      <div ref={setShellRef} className={shellClass}>
-        <video
-          ref={setVideoRef}
-          src={parsed.embedUrl}
-          controls
-          controlsList="nodownload noremoteplayback"
-          disablePictureInPicture
-          playsInline
-          className="h-full w-full"
-          onTimeUpdate={() => {
-            const el = innerVideoRef.current;
-            if (el) onProgress?.(Math.floor(el.currentTime));
-          }}
-          onEnded={() => onComplete?.()}
-        />
-      </div>
+    return wrapShell(
+      <video
+        ref={setVideoRef}
+        src={parsed.embedUrl}
+        controls
+        controlsList="nodownload noremoteplayback"
+        disablePictureInPicture
+        playsInline
+        className="h-full w-full"
+        onTimeUpdate={() => {
+          const el = innerVideoRef.current;
+          if (el) onProgress?.(Math.floor(el.currentTime));
+        }}
+        onEnded={() => onComplete?.()}
+      />
     );
   }
 

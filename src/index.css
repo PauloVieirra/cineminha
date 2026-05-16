@@ -81,10 +81,21 @@ body {
   }
 }
 
-/* Mobile horizontal: player em tela cheia */
+/* Mobile horizontal / PWA: player em tela cheia */
 html[data-landscape-player] body {
   overflow: hidden;
   background: #000;
+}
+
+html[data-landscape-player] .child-watch-page {
+  min-height: 100dvh;
+  padding: 0;
+}
+
+html[data-landscape-player] .child-watch-page > .mx-auto {
+  max-width: none;
+  margin: 0;
+  padding: 0 !important;
 }
 
 html[data-landscape-player] .child-watch-chrome {
@@ -106,6 +117,8 @@ html[data-landscape-player] .child-watch-below-player {
   border-radius: 0;
   aspect-ratio: unset;
   background: #000;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
 }
 
 .safe-player-shell--immersive iframe,
