@@ -1,4 +1,4 @@
-import { Download, Film, Loader2, Tv, X } from "lucide-react";
+import { Download, Film, Loader2, Search, Tv, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
@@ -9,6 +9,8 @@ import {
   getAgentOfflineHelp,
   getYouTubeVideoDetails,
   isAgentMisconfiguredInProduction,
+  searchYouTubeVideos,
+  type YouTubeSearchItem,
 } from "../../lib/youtube-api";
 import { classifyYoutubeLink, extractYoutubeVideoId } from "../../lib/youtube-link";
 import { parseVideoUrl } from "../../lib/video-url";
@@ -29,6 +31,8 @@ import { ImportProgressBanner } from "./ImportProgressBanner";
 type PreviewState =
   | { status: "idle" }
   | { status: "loading" }
+  | { status: "searching"; query: string }
+  | { status: "search"; query: string; results: YouTubeSearchItem[] }
   | { status: "error"; message: string }
   | {
       status: "video";
@@ -73,11 +77,13 @@ export function YoutubeLinkImport({
   const [channelVideos, setChannelVideos] = useState<ChannelVideoItem[]>([]);
   const [refreshingChannel, setRefreshingChannel] = useState(false);
   const lastAnalyzed = useRef("");
+  const searchAbort = useRef<AbortController | null>(null);
 
   const analyzeLink = useCallback(
     async (url: string) => {
       const trimmed = url.trim();
       if (!trimmed) {
+        searchAbort.current?.abort();
         setPreview({ status: "idle" });
         setActiveChannel(null);
         setChannelVideos([]);
@@ -86,10 +92,36 @@ export function YoutubeLinkImport({
 
       const kind = classifyYoutubeLink(trimmed);
       if (kind === "invalid") {
-        setPreview({
-          status: "error",
-          message: "Link não reconhecido. Cole um vídeo (watch?v=…) ou canal (@nome, /channel/UC…).",
-        });
+        // Não é URL: trata como busca textual no YouTube
+        if (trimmed.length < 2) {
+          setPreview({ status: "idle" });
+          return;
+        }
+        if (online === false) {
+          setPreview({ status: "error", message: getAgentOfflineHelp() });
+          return;
+        }
+        searchAbort.current?.abort();
+        const controller = new AbortController();
+        searchAbort.current = controller;
+        setPreview({ status: "searching", query: trimmed });
+        onError("");
+        onSuccess("");
+        try {
+          const results = await searchYouTubeVideos(trimmed, 12, controller.signal);
+          if (controller.signal.aborted) return;
+          setPreview({ status: "search", query: trimmed, results });
+          setActiveChannel(null);
+          setChannelVideos([]);
+        } catch (err) {
+          if (controller.signal.aborted || (err instanceof DOMException && err.name === "AbortError")) {
+            return;
+          }
+          setPreview({
+            status: "error",
+            message: err instanceof Error ? err.message : "Não foi possível buscar no YouTube.",
+          });
+        }
         return;
       }
 
@@ -246,6 +278,7 @@ export function YoutubeLinkImport({
   };
 
   const clearLink = () => {
+    searchAbort.current?.abort();
     setLink("");
     setPreview({ status: "idle" });
     setActiveChannel(null);
@@ -256,16 +289,24 @@ export function YoutubeLinkImport({
     onSuccess("");
   };
 
+  const handlePickSearchResult = (item: YouTubeSearchItem) => {
+    const url = `https://www.youtube.com/watch?v=${item.videoId}`;
+    searchAbort.current?.abort();
+    setLink(url);
+    lastAnalyzed.current = url;
+    void analyzeLink(url);
+  };
+
   const isBusy = publishing || preview.status === "loading" || checking;
 
   return (
     <div className="space-y-4">
       <div className="relative">
         <Input
-          label="Link do YouTube (vídeo ou canal)"
+          label="Link do YouTube ou busca por palavra"
           value={link}
           onChange={(e) => setLink(e.target.value)}
-          placeholder="https://www.youtube.com/@canal ou watch?v=..."
+          placeholder="Cole um link OU digite uma palavra para buscar (ex: peppa pig)"
           disabled={isBusy && !importProgress}
         />
         {link.trim() ? (
@@ -281,8 +322,9 @@ export function YoutubeLinkImport({
       </div>
 
       <p className="text-xs text-slate-500">
-        Cole o link de um <strong className="text-slate-400">vídeo</strong> ou de um{" "}
-        <strong className="text-slate-400">canal</strong>. A prévia aparece automaticamente abaixo.
+        Cole o link de um <strong className="text-slate-400">vídeo</strong>, de um{" "}
+        <strong className="text-slate-400">canal</strong>, ou digite uma{" "}
+        <strong className="text-slate-400">palavra</strong> para buscar no YouTube.
         {checking ? (
           <span className="mt-1 block text-slate-400">Verificando agente…</span>
         ) : online === false ? (
@@ -324,6 +366,58 @@ export function YoutubeLinkImport({
         <div className="flex items-center justify-center gap-3 rounded-xl border border-white/10 bg-black/20 py-12">
           <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
           <span className="text-sm text-slate-300">Analisando link… aguarde</span>
+        </div>
+      ) : null}
+
+      {preview.status === "searching" ? (
+        <div className="flex items-center justify-center gap-3 rounded-xl border border-white/10 bg-black/20 py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-emerald-400" />
+          <span className="text-sm text-slate-300">
+            Buscando “{preview.query}” no YouTube…
+          </span>
+        </div>
+      ) : null}
+
+      {preview.status === "search" ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-emerald-400">
+            <Search className="h-4 w-4" />
+            Resultados para “{preview.query}” ({preview.results.length})
+          </div>
+          {preview.results.length === 0 ? (
+            <p className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-slate-400">
+              Nenhum vídeo encontrado. Refine a busca ou cole um link direto.
+            </p>
+          ) : (
+            <ul className="max-h-[min(60vh,520px)] space-y-2 overflow-y-auto rounded-xl border border-white/10 bg-black/25 p-2">
+              {preview.results.map((item) => (
+                <li key={item.videoId}>
+                  <button
+                    type="button"
+                    onClick={() => handlePickSearchResult(item)}
+                    className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition hover:bg-white/10 focus:bg-white/10 focus:outline-none"
+                  >
+                    <img
+                      src={item.thumbnail}
+                      alt=""
+                      className="h-14 w-24 shrink-0 rounded-md object-cover bg-slate-800"
+                      loading="lazy"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 text-sm font-medium text-white">
+                        {item.title}
+                      </p>
+                      {item.channelTitle ? (
+                        <p className="mt-0.5 truncate text-xs text-slate-400">
+                          {item.channelTitle}
+                        </p>
+                      ) : null}
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       ) : null}
 

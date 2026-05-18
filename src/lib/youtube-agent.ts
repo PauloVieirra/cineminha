@@ -136,11 +136,13 @@ export async function fetchChannelFromAgent(
 
 export async function searchYouTubeVideos(
   query: string,
-  maxResults = 12
+  maxResults = 12,
+  signal?: AbortSignal
 ): Promise<YouTubeSearchItem[]> {
   const data = await agentFetch<{ items: YouTubeSearchItem[] }>("/youtube/search", {
     method: "POST",
     body: JSON.stringify({ query, max_results: maxResults }),
+    signal,
   });
   return data.items ?? [];
 }
