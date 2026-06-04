@@ -1,5 +1,5 @@
+import { Maximize2, Minimize2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 import { useMobileLandscapeFullscreen } from "../hooks/useMobileLandscapeFullscreen";
 import { parseVideoUrl, vimeoEmbedParams, youtubeEmbedParams } from "../lib/video-url";
 import type { Video } from "../types";
@@ -8,7 +8,7 @@ interface SafePlayerProps {
   video: Video;
   onProgress?: (seconds: number) => void;
   onComplete?: () => void;
-  /** Ativa fullscreen automático em mobile horizontal */
+  /** Modo imersivo automático ao girar o celular na horizontal */
   landscapeFullscreen?: boolean;
 }
 
@@ -20,15 +20,16 @@ export function SafePlayer({
 }: SafePlayerProps) {
   const parsed = parseVideoUrl(video.url);
   const innerVideoRef = useRef<HTMLVideoElement>(null);
+  const iframeSrcRef = useRef<string | null>(null);
+  const embedKey = `${video.id}-${video.embedId ?? ""}`;
   const startRef = useRef(Date.now());
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [blocked, setBlocked] = useState(false);
 
-  const resetKey = `${video.id}-${video.embedId ?? ""}`;
-  const { shellRef, bindVideoRef, isLandscapeMobile } = useMobileLandscapeFullscreen({
-    enabled: landscapeFullscreen,
-    resetKey,
-  });
+  const { shellRef, isImmersive, toggleImmersive } =
+    useMobileLandscapeFullscreen({
+      enabled: landscapeFullscreen,
+    });
 
   const setShellRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -37,17 +38,9 @@ export function SafePlayer({
     [shellRef]
   );
 
-  const setVideoRef = useCallback(
-    (node: HTMLVideoElement | null) => {
-      innerVideoRef.current = node;
-      bindVideoRef(node);
-    },
-    [bindVideoRef]
-  );
-
   const shellClass = [
     "safe-player-shell",
-    isLandscapeMobile ? "safe-player-shell--immersive" : "",
+    isImmersive ? "safe-player-shell--immersive" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -58,6 +51,10 @@ export function SafePlayer({
   }, [onProgress]);
 
   useEffect(() => {
+    iframeSrcRef.current = null;
+  }, [embedKey]);
+
+  useEffect(() => {
     startRef.current = Date.now();
     tickRef.current = setInterval(reportProgress, 5000);
     return () => {
@@ -65,25 +62,23 @@ export function SafePlayer({
     };
   }, [video.id, reportProgress]);
 
-  useEffect(() => {
-    const blockKeys = (e: KeyboardEvent) => {
-      if (e.key === "F11" || (e.ctrlKey && e.key === "f")) e.preventDefault();
-    };
-    window.addEventListener("keydown", blockKeys);
-    return () => window.removeEventListener("keydown", blockKeys);
-  }, []);
+  const fullscreenBtn = (
+    <button
+      type="button"
+      onClick={toggleImmersive}
+      className="safe-player-fs-btn"
+      aria-label={isImmersive ? "Sair da tela cheia" : "Tela cheia"}
+    >
+      {isImmersive ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+    </button>
+  );
 
-  const wrapShell = (content: ReactNode) => {
-    const shell = (
-      <div ref={setShellRef} className={shellClass}>
-        {content}
-      </div>
-    );
-    if (isLandscapeMobile) {
-      return createPortal(shell, document.body);
-    }
-    return shell;
-  };
+  const shell = (content: ReactNode) => (
+    <div ref={setShellRef} className={shellClass}>
+      {content}
+      {fullscreenBtn}
+    </div>
+  );
 
   if (!parsed) {
     return (
@@ -95,29 +90,32 @@ export function SafePlayer({
 
   if (parsed.platform === "youtube" && parsed.embedId) {
     const src = `${parsed.embedUrl}?${youtubeEmbedParams()}`;
-    return wrapShell(
-      <>
-        <iframe
-          title={video.title}
-          src={src}
-          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-          sandbox="allow-scripts allow-same-origin allow-presentation"
-        />
-        {!isLandscapeMobile ? (
-          <div className="safe-player-overlay absolute inset-0" aria-hidden />
-        ) : null}
-      </>
+    if (iframeSrcRef.current !== src) {
+      iframeSrcRef.current = src;
+    }
+    return shell(
+      <iframe
+        key={video.embedId}
+        title={video.title}
+        src={iframeSrcRef.current}
+        allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+        allowFullScreen
+        referrerPolicy="strict-origin-when-cross-origin"
+        sandbox="allow-scripts allow-same-origin allow-presentation"
+      />
     );
   }
 
   if (parsed.platform === "vimeo" && parsed.embedId) {
     const src = `${parsed.embedUrl}?${vimeoEmbedParams()}`;
-    return wrapShell(
+    if (iframeSrcRef.current !== src) {
+      iframeSrcRef.current = src;
+    }
+    return shell(
       <iframe
+        key={video.embedId}
         title={video.title}
-        src={src}
+        src={iframeSrcRef.current}
         allow="autoplay; fullscreen; picture-in-picture"
         allowFullScreen
         referrerPolicy="strict-origin-when-cross-origin"
@@ -127,9 +125,10 @@ export function SafePlayer({
   }
 
   if (parsed.platform === "direct" && parsed.embedUrl) {
-    return wrapShell(
+    return shell(
       <video
-        ref={setVideoRef}
+        ref={innerVideoRef}
+        key={parsed.embedUrl}
         src={parsed.embedUrl}
         controls
         controlsList="nodownload noremoteplayback"

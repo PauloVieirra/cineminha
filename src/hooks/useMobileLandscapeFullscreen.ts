@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  exitElementFullscreen,
-  requestElementFullscreen,
-  requestVideoNativeFullscreen,
   shouldUseLandscapeFullscreen,
   subscribeViewportOrientation,
 } from "../lib/fullscreen";
@@ -11,82 +8,58 @@ const ROOT_ATTR = "data-landscape-player";
 
 interface UseMobileLandscapeFullscreenOptions {
   enabled?: boolean;
-  /** Re-dispara fullscreen ao trocar de vídeo */
-  resetKey?: string;
 }
 
+/**
+ * Modo imersivo só via CSS (sem API Fullscreen nativa) para não remontar iframes ao girar o celular.
+ */
 export function useMobileLandscapeFullscreen(
   options: UseMobileLandscapeFullscreenOptions = {}
 ) {
-  const { enabled = true, resetKey = "" } = options;
+  const { enabled = true } = options;
   const shellRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
-  const enteredFsRef = useRef(false);
+  const [autoLandscape, setAutoLandscape] = useState(false);
+  const [userImmersive, setUserImmersive] = useState(false);
 
-  const updateOrientation = useCallback(() => {
-    const next = enabled && shouldUseLandscapeFullscreen();
-    setIsLandscapeMobile(next);
-    if (next) {
-      document.documentElement.setAttribute(ROOT_ATTR, "true");
-    } else {
-      document.documentElement.removeAttribute(ROOT_ATTR);
-    }
+  const isImmersive = enabled && (autoLandscape || userImmersive);
+
+  const syncRootAttr = useCallback(
+    (immersive: boolean) => {
+      if (immersive) {
+        document.documentElement.setAttribute(ROOT_ATTR, "true");
+      } else {
+        document.documentElement.removeAttribute(ROOT_ATTR);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    const update = () => {
+      setAutoLandscape(enabled && shouldUseLandscapeFullscreen());
+    };
+    update();
+    return subscribeViewportOrientation(update);
   }, [enabled]);
 
   useEffect(() => {
-    updateOrientation();
-    const unsubscribe = subscribeViewportOrientation(updateOrientation);
-    return () => {
-      unsubscribe();
-      document.documentElement.removeAttribute(ROOT_ATTR);
-      exitElementFullscreen();
-    };
-  }, [updateOrientation]);
+    syncRootAttr(isImmersive);
+    return () => syncRootAttr(false);
+  }, [isImmersive, syncRootAttr]);
 
-  useEffect(() => {
-    if (!isLandscapeMobile) {
-      if (enteredFsRef.current) {
-        exitElementFullscreen();
-        enteredFsRef.current = false;
-      }
-      return;
-    }
+  const enterImmersive = useCallback(() => setUserImmersive(true), []);
+  const exitImmersive = useCallback(() => setUserImmersive(false), []);
 
-    const shell = shellRef.current;
-    if (!shell) return;
-
-    let cancelled = false;
-
-    const enter = async () => {
-      await new Promise((r) => setTimeout(r, 120));
-      if (cancelled) return;
-
-      const video = videoRef.current;
-      if (video) {
-        const ok = await requestVideoNativeFullscreen(video);
-        if (ok) {
-          enteredFsRef.current = true;
-          return;
-        }
-      }
-
-      const ok = await requestElementFullscreen(shell);
-      enteredFsRef.current = ok;
-    };
-
-    enter();
-
-    return () => {
-      cancelled = true;
-      exitElementFullscreen();
-      enteredFsRef.current = false;
-    };
-  }, [isLandscapeMobile, resetKey]);
-
-  const bindVideoRef = useCallback((el: HTMLVideoElement | null) => {
-    videoRef.current = el;
+  const toggleImmersive = useCallback(() => {
+    setUserImmersive((v) => !v);
   }, []);
 
-  return { shellRef, bindVideoRef, isLandscapeMobile };
+  return {
+    shellRef,
+    isImmersive,
+    isAutoLandscape: autoLandscape,
+    enterImmersive,
+    exitImmersive,
+    toggleImmersive,
+  };
 }

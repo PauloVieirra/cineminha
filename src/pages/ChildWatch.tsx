@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -24,6 +23,8 @@ import {
   startWatchSession,
   updateWatchSession,
 } from "../services/history";
+import { getAutoplayNext } from "../lib/playback-prefs";
+import { getChild } from "../services/children";
 import { listVideosForChild } from "../services/videos";
 import { useAsyncData } from "../hooks/useAsyncData";
 import type { Video } from "../types";
@@ -76,6 +77,8 @@ export function ChildWatch() {
   const navigate = useNavigate();
   const sessionRef = useRef<string | null>(null);
   const lastDuration = useRef(0);
+  const playlistIndexRef = useRef(-1);
+  const playlistRef = useRef<PlaylistEntry[]>([]);
 
   const [channelItems, setChannelItems] = useState<YouTubeSearchItem[]>([]);
   const [ephemeralVideo, setEphemeralVideo] = useState<Video | null>(null);
@@ -94,11 +97,26 @@ export function ChildWatch() {
 
   const { data: allowed } = useAsyncData(async () => {
     if (!childId) return false;
+    const profile = await getChild(childId);
     if (videoId) {
       const list = await listVideosForChild(childId);
       return list.some((v) => v.id === videoId);
     }
     if (youtubeId) {
+      if (profile?.isAdult) {
+        try {
+          const meta = await getYouTubeVideoDetails(youtubeId);
+          if (meta) {
+            saveChannelContext(childId, {
+              channelId: meta.channelId,
+              channelTitle: meta.channelTitle,
+            });
+          }
+        } catch {
+          /* perfil adulto: ainda permite reproduzir */
+        }
+        return true;
+      }
       const ctx = loadChannelContext(childId);
       if (!ctx) return false;
       try {
@@ -149,6 +167,9 @@ export function ChildWatch() {
       return playlist.findIndex((e) => e.kind === "youtube" && e.youtubeId === youtubeId);
     return -1;
   }, [playlist, videoId, youtubeId]);
+
+  playlistIndexRef.current = playlistIndex;
+  playlistRef.current = playlist;
 
   const goPlaylistIndex = useCallback(
     (index: number) => {
@@ -267,7 +288,12 @@ export function ChildWatch() {
   const onComplete = useCallback(() => {
     const sid = sessionRef.current;
     if (sid) updateWatchSession(sid, lastDuration.current, true);
-  }, []);
+    const idx = playlistIndexRef.current;
+    const pl = playlistRef.current;
+    if (getAutoplayNext() && idx >= 0 && idx < pl.length - 1) {
+      goPlaylistIndex(idx + 1);
+    }
+  }, [goPlaylistIndex]);
 
   const selectYoutube = (item: YouTubeSearchItem) => {
     navigate(`/assistir/${childId}/yt/${item.videoId}`);
@@ -314,25 +340,21 @@ export function ChildWatch() {
             hint="Arraste para o lado para o próximo vídeo"
             hideHintOnLandscape
           >
-            <motion.div
-              key={playbackVideo.id + (playbackVideo.embedId ?? "")}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="watch-player-wrap overflow-hidden rounded-2xl"
-            >
+            <div className="watch-player-wrap overflow-hidden rounded-2xl">
               <SafePlayer
                 video={playbackVideo}
                 onProgress={onProgress}
                 onComplete={onComplete}
                 landscapeFullscreen
               />
-            </motion.div>
+            </div>
           </SwipeablePlayer>
         ) : (
           <div className="aspect-video animate-pulse rounded-2xl bg-slate-800" />
         )}
 
         <div className="child-watch-below-player">
+        <div className="child-watch-related">
         {channelError ? (
           <p className="mt-4 text-center text-sm text-slate-500">{channelError}</p>
         ) : null}
@@ -346,8 +368,10 @@ export function ChildWatch() {
           onSelectLibrary={selectLibrary}
         />
 
+        </div>
+
         {(library?.length ?? 0) > 1 ? (
-          <section className="mt-8">
+          <section className="child-watch-library-section mt-8">
             <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
               📚 Sua biblioteca
             </p>

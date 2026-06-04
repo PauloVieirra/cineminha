@@ -53,6 +53,34 @@ body {
   aspect-ratio: 16 / 9;
 }
 
+.safe-player-fs-btn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 12;
+  display: flex;
+  height: 40px;
+  width: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: none;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.safe-player-fs-btn:hover {
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.safe-player-shell--immersive .safe-player-fs-btn {
+  bottom: max(10px, env(safe-area-inset-bottom));
+  right: max(10px, env(safe-area-inset-right));
+}
+
 .safe-player-shell iframe,
 .safe-player-shell video {
   position: absolute;
@@ -102,8 +130,26 @@ html[data-landscape-player] .child-watch-chrome {
   display: none !important;
 }
 
-html[data-landscape-player] .child-watch-below-player {
+html[data-landscape-player] .child-watch-library-section {
   display: none !important;
+}
+
+html[data-landscape-player] .child-watch-related {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10001;
+  margin: 0;
+  padding: 0 max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85) 24%);
+  pointer-events: auto;
+}
+
+html[data-landscape-player] .child-watch-related h2,
+html[data-landscape-player] .child-watch-related > p:first-child {
+  display: none;
 }
 
 .safe-player-shell--immersive {

@@ -6,6 +6,7 @@ export type ChildRow = {
   name: string;
   avatar_color: string;
   emoji: string;
+  is_adult?: boolean;
   featured_video_id: string | null;
   created_at: string;
 };
@@ -77,6 +78,7 @@ export function mapChild(row: ChildRow): ChildProfile {
     name: row.name,
     avatarColor: row.avatar_color,
     emoji: row.emoji,
+    isAdult: row.is_adult ?? false,
     featuredVideoId: row.featured_video_id ?? undefined,
     createdAt: tsToMs(row.created_at),
   };
@@ -147,6 +149,7 @@ export function mapChildJson(raw: Record<string, unknown>): ChildProfile {
     name: String(raw.name),
     avatarColor: String(raw.avatarColor),
     emoji: String(raw.emoji),
+    isAdult: Boolean(raw.isAdult),
     featuredVideoId: raw.featuredVideoId ? String(raw.featuredVideoId) : undefined,
     createdAt: Number(raw.createdAt),
   };

@@ -105,6 +105,9 @@ export function ProfilesPage() {
                   color={child.avatarColor}
                   size="xl"
                 />
+                {child.isAdult ? (
+                  <p className="mt-2 text-xs font-medium text-amber-300/90">Adulto</p>
+                ) : null}
               </motion.button>
             ))}
           </div>

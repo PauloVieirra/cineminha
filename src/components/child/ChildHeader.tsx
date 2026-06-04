@@ -35,7 +35,9 @@ export function ChildHeader({ child, searchQuery, onSearchChange, onHome }: Chil
             type="search"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Buscar na sua biblioteca..."
+            placeholder={
+              child.isAdult ? "Buscar na biblioteca…" : "Buscar na sua biblioteca..."
+            }
             className="w-full rounded-full border border-white/10 bg-white/5 py-2.5 pl-10 pr-10 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/15"
             aria-label="Buscar vídeos"
           />

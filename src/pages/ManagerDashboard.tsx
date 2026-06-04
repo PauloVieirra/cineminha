@@ -1,6 +1,6 @@
 import { useAsyncData } from "../hooks/useAsyncData";
 import { AnimatePresence, motion } from "framer-motion";
-import { History, Link2, LogOut, Plus, Star, Trash2, Users, Video } from "lucide-react";
+import { History, Home, Link2, Plus, Star, Trash2, Users, Video } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Logo } from "../components/Logo";
@@ -9,7 +9,8 @@ import { ProfileAvatar } from "../components/ProfileAvatar";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { AVATAR_COLORS, AVATAR_EMOJIS, type ChildProfile } from "../types";
-import { clearAllSessions, getManagerSession } from "../lib/auth";
+import { getManagerSession } from "../lib/auth";
+import { clearGestorUnlocked } from "../lib/gestor-access";
 import { platformLabel } from "../lib/video-url";
 import {
   createChild,
@@ -18,7 +19,7 @@ import {
   setChildFeaturedVideo,
 } from "../services/children";
 import { formatDate, formatDuration, listWatchHistory } from "../services/history";
-import { getManagerById, logoutManager } from "../services/manager";
+import { getManagerById } from "../services/manager";
 import { YoutubeLinkImport } from "../components/manager/YoutubeLinkImport";
 import { listChannels } from "../services/channels";
 import { deleteVideo, listVideos } from "../services/videos";
@@ -44,15 +45,15 @@ export function ManagerDashboard() {
   const [childName, setChildName] = useState("");
   const [childColor, setChildColor] = useState<string>(AVATAR_COLORS[0]);
   const [childEmoji, setChildEmoji] = useState<string>(AVATAR_EMOJIS[0]);
+  const [childIsAdult, setChildIsAdult] = useState(false);
 
   const [selectedChildren, setSelectedChildren] = useState<string[]>([]);
   const [historyFilter, setHistoryFilter] = useState<string>("all");
   const [success, setSuccess] = useState("");
 
-  const logout = async () => {
-    await logoutManager();
-    clearAllSessions();
-    navigate("/");
+  const leaveGestor = () => {
+    clearGestorUnlocked();
+    navigate("/perfis", { replace: true });
   };
 
   const handleAddChild = async (e: React.FormEvent) => {
@@ -61,8 +62,9 @@ export function ManagerDashboard() {
     if (!childName.trim()) return;
     setLoading(true);
     try {
-      await createChild(childName, childColor, childEmoji);
+      await createChild(childName, childColor, childEmoji, childIsAdult);
       setChildName("");
+      setChildIsAdult(false);
       void reloadChildren();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao criar perfil.");
@@ -102,11 +104,11 @@ export function ManagerDashboard() {
           </Link>
           <button
             type="button"
-            onClick={logout}
+            onClick={leaveGestor}
             className="flex items-center gap-2 rounded-xl glass px-4 py-2 text-sm text-slate-300 hover:text-white"
           >
-            <LogOut className="h-4 w-4" />
-            Sair
+            <Home className="h-4 w-4" />
+            Voltar aos perfis
           </button>
         </div>
       </header>
@@ -196,6 +198,18 @@ export function ManagerDashboard() {
                     ))}
                   </div>
                 </div>
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
+                  <input
+                    type="checkbox"
+                    checked={childIsAdult}
+                    onChange={(e) => setChildIsAdult(e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-white/20 text-emerald-500 focus:ring-emerald-500"
+                  />
+                  <span className="text-sm text-slate-300">
+                    <strong className="text-white">Perfil de adulto</strong> — permite busca
+                    direta no YouTube e assistir vídeos fora da biblioteca curada.
+                  </span>
+                </label>
                 <Button type="submit" loading={loading}>
                   Criar perfil
                 </Button>
@@ -212,12 +226,19 @@ export function ManagerDashboard() {
                     key={child.id}
                     className="flex items-center justify-between rounded-2xl glass p-4"
                   >
-                    <ProfileAvatar
-                      name={child.name}
-                      emoji={child.emoji}
-                      color={child.avatarColor}
-                      size="sm"
-                    />
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <ProfileAvatar
+                        name={child.name}
+                        emoji={child.emoji}
+                        color={child.avatarColor}
+                        size="sm"
+                      />
+                      {child.isAdult ? (
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-300/90">
+                          Adulto
+                        </span>
+                      ) : null}
+                    </div>
                     <button
                       type="button"
                       onClick={() => {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ChildHeader } from "../components/child/ChildHeader";
+import { ChildYoutubeSearch } from "../components/child/ChildYoutubeSearch";
 import { FeaturedHero } from "../components/child/FeaturedHero";
 import { LibraryGrid } from "../components/child/LibraryGrid";
 import { filterVideosByQuery, orderVideosForHero } from "../lib/search";
@@ -64,6 +65,10 @@ export function ChildHome() {
     navigate(`/assistir/${childId}/video/${id}`);
   };
 
+  const playYoutube = (videoId: string) => {
+    navigate(`/assistir/${childId}/yt/${videoId}`);
+  };
+
   if (!childId) {
     navigate("/");
     return null;
@@ -111,6 +116,12 @@ export function ChildHome() {
               ))}
             </div>
           </section>
+        ) : null}
+
+        {child.isAdult ? (
+          <ChildYoutubeSearch
+            onPlay={(item) => playYoutube(item.videoId)}
+          />
         ) : null}
 
         <section className="mt-10">

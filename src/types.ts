@@ -12,6 +12,8 @@ export interface ChildProfile {
   name: string;
   avatarColor: string;
   emoji: string;
+  /** Perfil de adulto: busca direta no YouTube e reprodução ampliada */
+  isAdult?: boolean;
   /** Vídeo em destaque no header deste perfil (gestor define) */
   featuredVideoId?: string;
   createdAt: number;

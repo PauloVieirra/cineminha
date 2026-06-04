@@ -19,7 +19,8 @@ export async function listChildren(): Promise<ChildProfile[]> {
 export async function createChild(
   name: string,
   avatarColor: string,
-  emoji: string
+  emoji: string,
+  isAdult = false
 ): Promise<ChildProfile> {
   const managerId = await requireUserId();
   const { data, error } = await supabase
@@ -29,6 +30,7 @@ export async function createChild(
       name: name.trim(),
       avatar_color: avatarColor,
       emoji,
+      is_adult: isAdult,
     })
     .select("*")
     .single();
@@ -39,12 +41,13 @@ export async function createChild(
 
 export async function updateChild(
   id: string,
-  data: Partial<Pick<ChildProfile, "name" | "avatarColor" | "emoji" | "featuredVideoId">>
+  data: Partial<Pick<ChildProfile, "name" | "avatarColor" | "emoji" | "featuredVideoId" | "isAdult">>
 ): Promise<void> {
   const patch: Record<string, unknown> = {};
   if (data.name !== undefined) patch.name = data.name;
   if (data.avatarColor !== undefined) patch.avatar_color = data.avatarColor;
   if (data.emoji !== undefined) patch.emoji = data.emoji;
+  if (data.isAdult !== undefined) patch.is_adult = data.isAdult;
   if (data.featuredVideoId !== undefined) {
     patch.featured_video_id = data.featuredVideoId ?? null;
   }
