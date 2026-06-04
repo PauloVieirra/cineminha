@@ -4,11 +4,12 @@ import { useMobileLandscapeFullscreen } from "../hooks/useMobileLandscapeFullscr
 import { parseVideoUrl, vimeoEmbedParams, youtubeEmbedParams } from "../lib/video-url";
 import type { Video } from "../types";
 
+const CONTROLS_HIDE_MS = 3000;
+
 interface SafePlayerProps {
   video: Video;
   onProgress?: (seconds: number) => void;
   onComplete?: () => void;
-  /** Modo imersivo automático ao girar o celular na horizontal */
   landscapeFullscreen?: boolean;
 }
 
@@ -24,12 +25,13 @@ export function SafePlayer({
   const embedKey = `${video.id}-${video.embedId ?? ""}`;
   const startRef = useRef(Date.now());
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [blocked, setBlocked] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
 
-  const { shellRef, isImmersive, toggleImmersive } =
-    useMobileLandscapeFullscreen({
-      enabled: landscapeFullscreen,
-    });
+  const { shellRef, isImmersive, toggleImmersive, exitImmersive } = useMobileLandscapeFullscreen({
+    enabled: landscapeFullscreen,
+  });
 
   const setShellRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -38,9 +40,36 @@ export function SafePlayer({
     [shellRef]
   );
 
+  const scheduleHideControls = useCallback(() => {
+    if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+    if (!isImmersive) return;
+    hideControlsTimer.current = setTimeout(() => {
+      setControlsVisible(false);
+    }, CONTROLS_HIDE_MS);
+  }, [isImmersive]);
+
+  const revealControls = useCallback(() => {
+    setControlsVisible(true);
+    scheduleHideControls();
+  }, [scheduleHideControls]);
+
+  useEffect(() => {
+    if (isImmersive) {
+      setControlsVisible(false);
+      scheduleHideControls();
+    } else {
+      setControlsVisible(true);
+      if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+    }
+    return () => {
+      if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+    };
+  }, [isImmersive, scheduleHideControls]);
+
   const shellClass = [
     "safe-player-shell",
     isImmersive ? "safe-player-shell--immersive" : "",
+    controlsVisible ? "safe-player-shell--controls-visible" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -62,21 +91,39 @@ export function SafePlayer({
     };
   }, [video.id, reportProgress]);
 
-  const fullscreenBtn = (
-    <button
-      type="button"
-      onClick={toggleImmersive}
-      className="safe-player-fs-btn"
-      aria-label={isImmersive ? "Sair da tela cheia" : "Tela cheia"}
-    >
-      {isImmersive ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
-    </button>
-  );
-
   const shell = (content: ReactNode) => (
-    <div ref={setShellRef} className={shellClass}>
+    <div
+      ref={setShellRef}
+      className={shellClass}
+      onMouseMove={isImmersive ? revealControls : undefined}
+    >
       {content}
-      {fullscreenBtn}
+      {isImmersive ? (
+        <div
+          className="safe-player-reveal-layer"
+          aria-hidden
+          onPointerDown={revealControls}
+          onTouchStart={revealControls}
+        />
+      ) : null}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isImmersive) {
+            exitImmersive();
+            setControlsVisible(true);
+          } else {
+            toggleImmersive();
+            revealControls();
+          }
+        }}
+        className="safe-player-fs-btn"
+        aria-label={isImmersive ? "Sair da tela cheia" : "Tela cheia"}
+      >
+        {isImmersive ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+        {isImmersive ? <span className="safe-player-fs-label">Sair</span> : null}
+      </button>
     </div>
   );
 
@@ -90,9 +137,7 @@ export function SafePlayer({
 
   if (parsed.platform === "youtube" && parsed.embedId) {
     const src = `${parsed.embedUrl}?${youtubeEmbedParams()}`;
-    if (iframeSrcRef.current !== src) {
-      iframeSrcRef.current = src;
-    }
+    if (iframeSrcRef.current !== src) iframeSrcRef.current = src;
     return shell(
       <iframe
         key={video.embedId}
@@ -108,9 +153,7 @@ export function SafePlayer({
 
   if (parsed.platform === "vimeo" && parsed.embedId) {
     const src = `${parsed.embedUrl}?${vimeoEmbedParams()}`;
-    if (iframeSrcRef.current !== src) {
-      iframeSrcRef.current = src;
-    }
+    if (iframeSrcRef.current !== src) iframeSrcRef.current = src;
     return shell(
       <iframe
         key={video.embedId}

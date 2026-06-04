@@ -23,6 +23,7 @@ import {
 } from "../../services/channels";
 import type { YoutubeChannel } from "../../types";
 import { addVideo } from "../../services/videos";
+import { SearchResultAddButton } from "../SearchResultAddButton";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { ChannelVideoManager } from "./ChannelVideoManager";
@@ -52,15 +53,19 @@ type PreviewState =
 interface YoutubeLinkImportProps {
   childIds: string[];
   hasChildren: boolean;
+  libraryEmbedIds?: Set<string>;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
+  onLibraryChange?: () => void;
 }
 
 export function YoutubeLinkImport({
   childIds,
   hasChildren,
+  libraryEmbedIds,
   onError,
   onSuccess,
+  onLibraryChange,
 }: YoutubeLinkImportProps) {
   const { online, checking, refresh: refreshAgent } = useYoutubeAgent();
   const [link, setLink] = useState("");
@@ -392,28 +397,41 @@ export function YoutubeLinkImport({
             <ul className="max-h-[min(60vh,520px)] space-y-2 overflow-y-auto rounded-xl border border-white/10 bg-black/25 p-2">
               {preview.results.map((item) => (
                 <li key={item.videoId}>
-                  <button
-                    type="button"
-                    onClick={() => handlePickSearchResult(item)}
-                    className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition hover:bg-white/10 focus:bg-white/10 focus:outline-none"
-                  >
-                    <img
-                      src={item.thumbnail}
-                      alt=""
-                      className="h-14 w-24 shrink-0 rounded-md object-cover bg-slate-800"
-                      loading="lazy"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="line-clamp-2 text-sm font-medium text-white">
-                        {item.title}
-                      </p>
-                      {item.channelTitle ? (
-                        <p className="mt-0.5 truncate text-xs text-slate-400">
-                          {item.channelTitle}
+                  <div className="flex w-full items-center gap-2 rounded-lg p-2 transition hover:bg-white/10">
+                    <button
+                      type="button"
+                      onClick={() => handlePickSearchResult(item)}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left focus:outline-none"
+                    >
+                      <img
+                        src={item.thumbnail}
+                        alt=""
+                        className="h-14 w-24 shrink-0 rounded-md object-cover bg-slate-800"
+                        loading="lazy"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 text-sm font-medium text-white">
+                          {item.title}
                         </p>
-                      ) : null}
-                    </div>
-                  </button>
+                        {item.channelTitle ? (
+                          <p className="mt-0.5 truncate text-xs text-slate-400">
+                            {item.channelTitle}
+                          </p>
+                        ) : null}
+                      </div>
+                    </button>
+                    <SearchResultAddButton
+                      item={item}
+                      childIds={childIds}
+                      alreadyInLibrary={libraryEmbedIds?.has(item.videoId) ?? false}
+                      size="sm"
+                      onAdded={() => {
+                        onSuccess(`“${item.title}” adicionado à biblioteca.`);
+                        onLibraryChange?.();
+                      }}
+                      onError={onError}
+                    />
+                  </div>
                 </li>
               ))}
             </ul>

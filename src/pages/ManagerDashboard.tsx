@@ -1,7 +1,7 @@
 import { useAsyncData } from "../hooks/useAsyncData";
 import { AnimatePresence, motion } from "framer-motion";
 import { History, Home, Link2, Plus, Star, Trash2, Users, Video } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Logo } from "../components/Logo";
 import { PageShell } from "../components/PageShell";
@@ -38,7 +38,7 @@ export function ManagerDashboard() {
     [managerId]
   );
   const { data: children, reload: reloadChildren } = useAsyncData(() => listChildren(), []);
-  const { data: videos } = useAsyncData(() => listVideos(), []);
+  const { data: videos, reload: reloadVideos } = useAsyncData(() => listVideos(), []);
   const { data: channels } = useAsyncData(() => listChannels(), []);
   const { data: history } = useAsyncData(() => listWatchHistory({ limit: 100 }), []);
 
@@ -81,6 +81,19 @@ export function ManagerDashboard() {
 
   const filteredHistory =
     history?.filter((h) => historyFilter === "all" || h.childId === historyFilter) ?? [];
+
+  const libraryEmbedIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const v of videos ?? []) {
+      if (
+        v.embedId &&
+        v.childIds.some((id) => selectedChildren.includes(id))
+      ) {
+        ids.add(v.embedId);
+      }
+    }
+    return ids;
+  }, [videos, selectedChildren]);
 
   const childNameById = (id: string) =>
     children?.find((c) => c.id === id)?.name ?? "Desconhecido";
@@ -311,8 +324,13 @@ export function ManagerDashboard() {
                 <YoutubeLinkImport
                   childIds={selectedChildren}
                   hasChildren={Boolean(children?.length)}
+                  libraryEmbedIds={libraryEmbedIds}
                   onError={setError}
-                  onSuccess={setSuccess}
+                  onSuccess={(msg) => {
+                    setSuccess(msg);
+                    void reloadVideos();
+                  }}
+                  onLibraryChange={() => void reloadVideos()}
                 />
               </div>
             </section>

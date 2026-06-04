@@ -53,27 +53,51 @@ body {
   aspect-ratio: 16 / 9;
 }
 
+.safe-player-reveal-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  touch-action: manipulation;
+}
+
+.safe-player-shell--controls-visible .safe-player-reveal-layer {
+  pointer-events: none;
+}
+
 .safe-player-fs-btn {
   position: absolute;
   right: 10px;
   bottom: 10px;
-  z-index: 12;
+  z-index: 13;
   display: flex;
-  height: 40px;
-  width: 40px;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  min-width: 40px;
+  padding: 0 12px;
   border-radius: 9999px;
   border: none;
   background: rgba(0, 0, 0, 0.65);
   color: #fff;
   backdrop-filter: blur(8px);
   cursor: pointer;
-  transition: background 0.2s;
+  pointer-events: auto;
+  opacity: 1;
+  transition: opacity 0.25s ease, background 0.2s;
 }
 
 .safe-player-fs-btn:hover {
   background: rgba(0, 0, 0, 0.85);
+}
+
+.safe-player-shell--immersive:not(.safe-player-shell--controls-visible) .safe-player-fs-btn {
+  opacity: 0;
+}
+
+.safe-player-fs-label {
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .safe-player-shell--immersive .safe-player-fs-btn {

@@ -8,7 +8,7 @@ import {
 } from "../lib/supabase/helpers";
 import { mapVideo, mapVideoJson, type VideoRow } from "../lib/supabase/mappers";
 import { parseVideoUrl } from "../lib/video-url";
-import { getYouTubeVideoDetails } from "../lib/youtube-api";
+import { getYouTubeVideoDetails, youtubeWatchUrl, type YouTubeSearchItem } from "../lib/youtube-api";
 import type { Video } from "../types";
 
 export async function listVideos(): Promise<Video[]> {
@@ -28,6 +28,31 @@ export async function listVideosForChild(childId: string): Promise<Video[]> {
   if (error) throw new Error(error.message);
   const list = (data ?? []) as Record<string, unknown>[];
   return list.map(mapVideoJson);
+}
+
+/** Adiciona resultado de busca à biblioteca (ou vincula perfis a vídeo já existente). */
+export async function addYoutubeSearchItemToLibrary(
+  item: YouTubeSearchItem,
+  childIds: string[]
+): Promise<Video> {
+  if (childIds.length === 0) {
+    throw new Error("Selecione pelo menos um perfil para a biblioteca.");
+  }
+
+  const managerId = await requireUserId();
+  const { data: existing } = await supabase
+    .from("videos")
+    .select("*")
+    .eq("manager_id", managerId)
+    .eq("embed_id", item.videoId)
+    .maybeSingle();
+
+  if (existing) {
+    const merged = await mergeVideoChildren(existing.id, childIds);
+    return mapVideo(existing as VideoRow, merged);
+  }
+
+  return addVideo(youtubeWatchUrl(item.videoId), item.title, childIds);
 }
 
 export async function addVideo(

@@ -20,8 +20,10 @@ export function useMobileLandscapeFullscreen(
   const shellRef = useRef<HTMLDivElement>(null);
   const [autoLandscape, setAutoLandscape] = useState(false);
   const [userImmersive, setUserImmersive] = useState(false);
+  const [landscapeDismissed, setLandscapeDismissed] = useState(false);
 
-  const isImmersive = enabled && (autoLandscape || userImmersive);
+  const isImmersive =
+    enabled && !landscapeDismissed && (autoLandscape || userImmersive);
 
   const syncRootAttr = useCallback(
     (immersive: boolean) => {
@@ -36,7 +38,9 @@ export function useMobileLandscapeFullscreen(
 
   useEffect(() => {
     const update = () => {
-      setAutoLandscape(enabled && shouldUseLandscapeFullscreen());
+      const landscape = enabled && shouldUseLandscapeFullscreen();
+      setAutoLandscape(landscape);
+      if (!landscape) setLandscapeDismissed(false);
     };
     update();
     return subscribeViewportOrientation(update);
@@ -48,7 +52,10 @@ export function useMobileLandscapeFullscreen(
   }, [isImmersive, syncRootAttr]);
 
   const enterImmersive = useCallback(() => setUserImmersive(true), []);
-  const exitImmersive = useCallback(() => setUserImmersive(false), []);
+  const exitImmersive = useCallback(() => {
+    setUserImmersive(false);
+    setLandscapeDismissed(true);
+  }, []);
 
   const toggleImmersive = useCallback(() => {
     setUserImmersive((v) => !v);

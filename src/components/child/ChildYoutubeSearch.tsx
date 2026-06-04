@@ -1,20 +1,32 @@
 import { Loader2, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { useYoutubeAgent } from "../../hooks/useYoutubeAgent";
 import { searchYouTubeVideos, type YouTubeSearchItem } from "../../lib/youtube-api";
+import { SearchResultAddButton } from "../SearchResultAddButton";
 
 interface ChildYoutubeSearchProps {
+  childId: string;
+  libraryEmbedIds: Set<string>;
   onPlay: (item: YouTubeSearchItem) => void;
+  onLibraryChange?: () => void;
 }
 
-export function ChildYoutubeSearch({ onPlay }: ChildYoutubeSearchProps) {
+export function ChildYoutubeSearch({
+  childId,
+  libraryEmbedIds,
+  onPlay,
+  onLibraryChange,
+}: ChildYoutubeSearchProps) {
   const { online, checking } = useYoutubeAgent();
   const [query, setQuery] = useState("");
   const debounced = useDebouncedValue(query, 450);
   const [results, setResults] = useState<YouTubeSearchItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [addError, setAddError] = useState("");
+
+  const childIds = useMemo(() => [childId], [childId]);
 
   useEffect(() => {
     if (!online || debounced.trim().length < 2) {
@@ -47,9 +59,7 @@ export function ChildYoutubeSearch({ onPlay }: ChildYoutubeSearchProps) {
   }, [debounced, online]);
 
   if (checking) {
-    return (
-      <p className="text-sm text-slate-500">Verificando busca no YouTube…</p>
-    );
+    return <p className="text-sm text-slate-500">Verificando busca no YouTube…</p>;
   }
 
   if (!online) {
@@ -82,21 +92,41 @@ export function ChildYoutubeSearch({ onPlay }: ChildYoutubeSearchProps) {
         </p>
       ) : null}
       {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
+      {addError ? <p className="mt-2 text-sm text-red-400">{addError}</p> : null}
 
       {results.length > 0 ? (
         <div className="scrollbar-hide mt-4 flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
           {results.map((item) => (
-            <button
+            <article
               key={item.videoId}
-              type="button"
-              onClick={() => onPlay(item)}
-              className="w-44 shrink-0 snap-center overflow-hidden rounded-xl text-left transition hover:ring-2 hover:ring-emerald-400/50"
+              className="relative w-44 shrink-0 snap-center overflow-hidden rounded-xl bg-slate-900/80 ring-1 ring-white/10"
             >
-              <div className="aspect-video bg-slate-800">
-                <img src={item.thumbnail} alt="" className="h-full w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => onPlay(item)}
+                className="block w-full text-left transition hover:ring-2 hover:ring-emerald-400/50"
+              >
+                <div className="aspect-video bg-slate-800">
+                  <img src={item.thumbnail} alt="" className="h-full w-full object-cover" />
+                </div>
+                <p className="line-clamp-2 p-2 pr-12 text-xs font-medium text-slate-200">
+                  {item.title}
+                </p>
+              </button>
+              <div className="absolute right-2 top-2">
+                <SearchResultAddButton
+                  item={item}
+                  childIds={childIds}
+                  alreadyInLibrary={libraryEmbedIds.has(item.videoId)}
+                  size="sm"
+                  onAdded={() => {
+                    setAddError("");
+                    onLibraryChange?.();
+                  }}
+                  onError={setAddError}
+                />
               </div>
-              <p className="line-clamp-2 p-2 text-xs font-medium text-slate-200">{item.title}</p>
-            </button>
+            </article>
           ))}
         </div>
       ) : null}

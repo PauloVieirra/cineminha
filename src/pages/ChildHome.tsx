@@ -22,10 +22,18 @@ export function ChildHome() {
     () => (childId ? getChild(childId) : Promise.resolve(undefined)),
     [childId]
   );
-  const { data: library } = useAsyncData(
+  const { data: library, reload: reloadLibrary } = useAsyncData(
     () => (childId ? listVideosForChild(childId) : Promise.resolve([])),
     [childId]
   );
+
+  const libraryEmbedIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const v of library ?? []) {
+      if (v.embedId) ids.add(v.embedId);
+    }
+    return ids;
+  }, [library]);
   const { data: channelsWithCounts } = useAsyncData(async () => {
     if (!childId) return [];
     const chs = await listChannelsForChild(childId);
@@ -120,7 +128,10 @@ export function ChildHome() {
 
         {child.isAdult ? (
           <ChildYoutubeSearch
+            childId={childId}
+            libraryEmbedIds={libraryEmbedIds}
             onPlay={(item) => playYoutube(item.videoId)}
+            onLibraryChange={() => void reloadLibrary()}
           />
         ) : null}
 
